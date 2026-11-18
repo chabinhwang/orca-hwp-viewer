@@ -1,0 +1,32 @@
+{
+  "manifestVersion": 2,
+  "id": "hwp-viewer",
+  "name": "HWP Viewer",
+  "version": "0.1.0",
+  "description": "Read Hangul (.hwp, .hwpx) documents in Orca with their original page layout. 한글 문서를 원본 쪽 배치 그대로 읽습니다.",
+  "author": {
+    "name": "chabinhwang",
+    "url": "https://github.com/chabinhwang"
+  },
+  "repository": "https://github.com/chabinhwang/orca-hwp-viewer",
+  "license": "MIT",
+  "engines": {
+    "orca": ">=1.4.248"
+  },
+  "execution": "trusted-worker",
+  "pluginApi": 1,
+  "main": "dist/worker.mjs",
+  "contributes": {
+    "customEditors": [
+      {
+        "id": "hwp",
+        "title": "HWP Preview",
+        "extensions": [".hwp", ".hwpx"],
+        "entry": "editor/main.ts",
+        "priority": "default",
+        "contentKind": "bytes",
+        "frame": "isolated"
+      }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+node_modules/
+.orca/
+# 저작권·개인정보가 있을 수 있는 실제 문서: 로컬 테스트 전용
+test/fixtures/local/
+test/fixtures/generated/
