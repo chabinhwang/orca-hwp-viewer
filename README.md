@@ -1,5 +1,7 @@
 # HWP Viewer for Orca
 
+**한국어** | [English](README.en.md)
+
 [Orca](https://orca.dev)에서 한글 문서(`.hwp`, `.hwpx`)를 원본 쪽 배치 그대로 읽는 플러그인입니다.
 
 ![HWP Viewer로 연 HWPX 문서](docs/screenshot.png)
@@ -80,7 +82,3 @@ orca plugin shot local.hwp-viewer --editor "$PWD/test/fixtures/generated/sample.
 ## 라이선스
 
 [MIT](LICENSE). `dist/worker.mjs`에 묶인 kordoc과 그 의존성의 라이선스는 [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt)에 있습니다.
-
----
-
-**English.** An Orca custom editor that renders Hangul word processor documents (`.hwp` 5.x and `.hwpx`) with their original page layout, using the bundled [kordoc](https://github.com/chrisryugj/kordoc) renderer in a plugin worker. Read-only, fully local, no network access. Install with `orca plugin install chabinhwang/orca-hwp-viewer` (Orca desktop `>= 1.4.248`).
