@@ -1,6 +1,7 @@
 # HWP Viewer for Orca
 
-**한국어** | [English](README.en.md)
+> [!NOTE]
+> **English README is available → [README.en.md](README.en.md)**
 
 [Orca](https://orca.dev)에서 한글 문서(`.hwp`, `.hwpx`)를 원본 쪽 배치 그대로 읽는 플러그인입니다.
 
