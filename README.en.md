@@ -1,7 +1,6 @@
 # HWP Viewer for Orca
 
-> [!NOTE]
-> **한국어 README → [README.md](README.md)**
+[한국어](README.md) | **English**
 
 A plugin for [Orca](https://orca.dev) that displays Hangul word processor documents (`.hwp`, `.hwpx`) with their original page layout.
 
