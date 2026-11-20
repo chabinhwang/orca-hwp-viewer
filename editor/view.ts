@@ -1,7 +1,6 @@
 import type { PageInfo } from '../src/protocol.ts'
+import { clampZoom, fitHeightZoom, fitWidthZoom, pinchFactor, PT_TO_PX, stepZoom } from './zoom'
 
-const PT_TO_PX = 96 / 72
-const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3]
 const PAGE_GAP_PX = 16
 
 const STYLE = `
@@ -28,7 +27,7 @@ body { display: flex; flex-direction: column; background: var(--orca-background)
 
 export type View = ReturnType<typeof createView>
 
-export function createView(handlers: { onZoom: (zoom: number) => void; onFit: () => void }) {
+export function createView() {
   const style = document.createElement('style')
   style.textContent = STYLE
   document.head.append(style)
@@ -49,15 +48,15 @@ export function createView(handlers: { onZoom: (zoom: number) => void; onFit: ()
 
   let zoom = 1
   const step = (direction: 1 | -1) => {
-    const next =
-      direction > 0 ? ZOOM_STEPS.find((z) => z > zoom + 0.001) : [...ZOOM_STEPS].reverse().find((z) => z < zoom - 0.001)
-    if (next) handlers.onZoom(next)
+    const next = stepZoom(zoom, direction)
+    if (next) setZoom(next)
   }
   bar.append(
     button('−', '축소', () => step(-1)),
     zoomLabel,
     button('+', '확대', () => step(1)),
-    button('폭 맞춤', '창 폭에 맞추기', handlers.onFit),
+    button('쪽 맞춤', '한 쪽이 창 높이에 들어가게 맞추기', () => setZoom(fitHeightZoom(pages, scroll.clientHeight))),
+    button('폭 맞춤', '창 폭에 맞추기', () => setZoom(fitWidthZoom(pages, scroll.clientWidth))),
     status
   )
 
@@ -80,6 +79,51 @@ export function createView(handlers: { onZoom: (zoom: number) => void; onFit: ()
     }
     zoomLabel.textContent = `${Math.round(zoom * 100)}%`
   }
+
+  /** 문서 전체 높이 비율로 스크롤 위치를 유지하며 배율을 바꾼다 (버튼·맞춤) */
+  const setZoom = (next: number) => {
+    const anchor = scroll.scrollTop / Math.max(1, scroll.scrollHeight)
+    zoom = clampZoom(next)
+    sizeSlots()
+    scroll.scrollTop = anchor * scroll.scrollHeight
+  }
+
+  /** 커서 아래의 쪽 위치가 그대로 커서 아래에 남도록 배율을 바꾼다 (핀치) */
+  const zoomAt = (next: number, clientX: number, clientY: number) => {
+    const target = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('.page')
+    if (!target) return setZoom(next)
+    const before = target.getBoundingClientRect()
+    const fx = (clientX - before.left) / Math.max(1, before.width)
+    const fy = (clientY - before.top) / Math.max(1, before.height)
+    zoom = clampZoom(next)
+    sizeSlots()
+    const after = target.getBoundingClientRect()
+    scroll.scrollLeft += after.left + fx * after.width - clientX
+    scroll.scrollTop += after.top + fy * after.height - clientY
+  }
+
+  // 트랙패드 핀치는 Chromium에서 ctrlKey가 붙은 wheel 이벤트로 온다 (마우스 Ctrl+휠도 같다).
+  // 기본 동작(페이지 확대)을 막아야 하므로 passive가 아니어야 한다. 이벤트를 프레임마다 한 번으로 모은다.
+  let pendingFactor = 1
+  let pendingPoint = { x: 0, y: 0 }
+  let frame = 0
+  scroll.addEventListener(
+    'wheel',
+    (event) => {
+      if (!event.ctrlKey || pages.length === 0) return
+      event.preventDefault()
+      pendingFactor *= pinchFactor(event.deltaY, event.deltaMode)
+      pendingPoint = { x: event.clientX, y: event.clientY }
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        const factor = pendingFactor
+        pendingFactor = 1
+        zoomAt(zoom * factor, pendingPoint.x, pendingPoint.y)
+      })
+    },
+    { passive: false }
+  )
 
   return {
     scroll,
@@ -119,16 +163,10 @@ export function createView(handlers: { onZoom: (zoom: number) => void; onFit: ()
       sizeSlots()
       return slots
     },
-    setZoom(next: number) {
-      const anchor = scroll.scrollTop / Math.max(1, scroll.scrollHeight)
-      zoom = Math.min(ZOOM_STEPS[ZOOM_STEPS.length - 1], Math.max(ZOOM_STEPS[0], next))
-      sizeSlots()
-      scroll.scrollTop = anchor * scroll.scrollHeight
-    },
-    /** 가장 넓은 쪽이 창 폭에 들어가는 배율 */
-    fitZoom(): number {
-      const widest = Math.max(1, ...pages.map((info) => info.width * PT_TO_PX))
-      return Math.min(2, Math.max(ZOOM_STEPS[0], (scroll.clientWidth - 40) / widest))
+    setZoom,
+    /** 문서를 처음 열 때의 배율: 한 쪽이 창 높이에 들어가게 */
+    fitDefault() {
+      setZoom(fitHeightZoom(pages, scroll.clientHeight))
     },
     fillPage(page: number, content: Element | string) {
       const slot = slots.get(page)

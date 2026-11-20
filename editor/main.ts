@@ -14,10 +14,7 @@ const messageOf = (error: unknown): string => {
 let generation = 0
 let observer: IntersectionObserver | undefined
 
-const view = createView({
-  onZoom: (zoom) => view.setZoom(zoom),
-  onFit: () => view.setZoom(view.fitZoom())
-})
+const view = createView()
 
 /** 화면 가까이 온 쪽만 워커에서 받아 그린다 */
 function watchPages(doc: RenderedDoc, slots: Map<number, HTMLDivElement>, mine: number): void {
@@ -73,7 +70,7 @@ async function show(file: HwpFile): Promise<void> {
     const doc = await uploadAndRender(file.bytes, file.fileType)
     if (mine !== generation) return
     const slots = view.layout(doc.pages)
-    view.setZoom(view.fitZoom())
+    view.fitDefault()
     const seconds = ((performance.now() - started) / 1000).toFixed(1)
     const warn = doc.warnings.length > 0 ? ` · 경고 ${doc.warnings.length}건: ${doc.warnings.join(' / ')}` : ''
     view.setStatus(`${file.fileType.toUpperCase()} · ${doc.pages.length}쪽 · ${seconds}s${warn}`)

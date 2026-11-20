@@ -2,8 +2,8 @@
   "manifestVersion": 2,
   "id": "hwp-viewer",
   "name": "HWP Viewer",
-  "version": "0.1.0",
-  "description": "Read Hangul (.hwp, .hwpx) documents in Orca with their original page layout. 한글 문서를 원본 쪽 배치 그대로 읽습니다.",
+  "version": "0.2.0",
+  "description": "Orca에서 한글 문서를 볼 수 있습니다. Read Hangul (.hwp, .hwpx) documents in Orca with their original page layout.",
   "author": {
     "name": "chabinhwang",
     "url": "https://github.com/chabinhwang"

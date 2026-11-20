@@ -8,7 +8,8 @@ A plugin for [Orca](https://orca.dev) that displays Hangul word processor docume
 
 - Open an `.hwp` or `.hwpx` file from the file explorer and it shows up right away in an **HWP Preview** tab.
 - Tables, borders, background colors, images and page breaks are drawn from the document's own layout data.
-- Supports zoom in, zoom out and fit to width. Only pages near the viewport are loaded, so long documents stay light.
+- Opens with one page filling the window height. Zoom with a trackpad pinch (or Ctrl+wheel) or the buttons, and go back with Fit page or Fit width.
+- Only pages near the viewport are loaded, so long documents stay light.
 - When an agent or another program changes the file, the view re-renders automatically.
 - Everything runs on your machine. No network requests, no data collection.
 
@@ -48,7 +49,7 @@ If a document renders incorrectly, please report it in the [issues](https://gith
 | `src/protocol.ts` | Editor↔worker request contract (`hwp.chunk`, `hwp.render`, `hwp.page`) and chunk size |
 | `worker/` | Worker source. Assembles chunks, builds per-page SVG with kordoc `renderDocumentToScene`, and caches the result |
 | `dist/worker.mjs` | Worker bundle produced by `npm run build` (worker source + kordoc render path). This is the file Orca runs |
-| `editor/` | Isolated-frame viewer: upload and lazy loading (`main.ts`), transport (`transport.ts`), SVG sanitizing (`svg.ts`), toolbar (`view.ts`) |
+| `editor/` | Isolated-frame viewer: upload and lazy loading (`main.ts`), transport (`transport.ts`), SVG sanitizing (`svg.ts`), toolbar and pinch zoom (`view.ts`), zoom math (`zoom.ts`) |
 | `scripts/build.mjs` | Generates the bundle and `THIRD_PARTY_NOTICES.txt`; `--check` verifies the committed bundle matches the source |
 | `scripts/make-fixtures.mjs` | Generates test HWPX files with kordoc |
 

@@ -8,7 +8,8 @@
 
 - 파일 탐색기에서 `.hwp`·`.hwpx`를 열면 바로 **HWP Preview** 탭으로 보입니다.
 - 표·테두리·배경색·그림·쪽 나눔을 한컴 문서의 조판 정보대로 그립니다.
-- 확대·축소·폭 맞춤을 지원하고, 화면 가까이 온 쪽만 불러와 긴 문서도 가볍게 엽니다.
+- 처음 열면 한 쪽이 창 높이에 꽉 차게 보입니다. 트랙패드 핀치(또는 Ctrl+휠)와 버튼으로 확대·축소하고, 쪽 맞춤·폭 맞춤으로 되돌릴 수 있습니다.
+- 화면 가까이 온 쪽만 불러와 긴 문서도 가볍게 엽니다.
 - 에이전트나 다른 프로그램이 파일을 바꾸면 자동으로 다시 그립니다.
 - 모든 처리는 내 컴퓨터 안에서 끝납니다. 네트워크 요청이나 데이터 수집은 없습니다.
 
@@ -48,7 +49,7 @@ kordoc 렌더러의 한계를 그대로 따릅니다.
 | `src/protocol.ts` | 에디터↔워커 요청 계약(`hwp.chunk`, `hwp.render`, `hwp.page`)과 조각 크기 |
 | `worker/` | 워커 소스. 조각을 모아 kordoc `renderDocumentToScene`으로 쪽별 SVG를 만들고 캐시 |
 | `dist/worker.mjs` | `npm run build`가 만드는 워커 번들(워커 소스 + kordoc 렌더 경로). Orca가 실행하는 파일 |
-| `editor/` | 격리 프레임 뷰어: 업로드·지연 로드(`main.ts`), 전송(`transport.ts`), SVG 정리(`svg.ts`), 툴바(`view.ts`) |
+| `editor/` | 격리 프레임 뷰어: 업로드·지연 로드(`main.ts`), 전송(`transport.ts`), SVG 정리(`svg.ts`), 툴바·핀치 확대(`view.ts`), 배율 계산(`zoom.ts`) |
 | `scripts/build.mjs` | 번들과 `THIRD_PARTY_NOTICES.txt` 생성, `--check`로 커밋된 번들이 소스와 같은지 확인 |
 | `scripts/make-fixtures.mjs` | 테스트용 HWPX를 kordoc으로 생성 |
 
