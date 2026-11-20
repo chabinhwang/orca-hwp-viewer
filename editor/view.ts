@@ -23,6 +23,16 @@ body { display: flex; flex-direction: column; background: var(--orca-background)
 .message { margin: 48px auto; max-width: 560px; padding: 16px 18px; border-radius: var(--orca-radius, 6px);
   background: var(--orca-card); border: 1px solid var(--orca-border); line-height: 1.6; white-space: pre-wrap; }
 .message.error { border-color: var(--orca-destructive); }
+.lock { display: flex; flex-direction: column; gap: 10px; white-space: normal; }
+.lock .title { font-weight: 600; font-size: 13px; }
+.lock .row { display: flex; gap: 6px; }
+.lock input { flex: 1; min-width: 0; font: inherit; color: var(--orca-foreground); background: var(--orca-background);
+  border: 1px solid var(--orca-input, var(--orca-border)); border-radius: var(--orca-radius, 6px); padding: 5px 8px; }
+.lock input:focus { outline: 2px solid var(--orca-ring, var(--orca-primary)); outline-offset: -1px; }
+.lock button { font: inherit; color: var(--orca-primary-foreground); background: var(--orca-primary); border: 0;
+  border-radius: var(--orca-radius, 6px); padding: 5px 14px; cursor: pointer; }
+.lock .hint { color: var(--orca-muted-foreground); }
+.lock .wrong { color: var(--orca-destructive); }
 `
 
 export type View = ReturnType<typeof createView>
@@ -142,6 +152,38 @@ export function createView() {
       box.className = isError ? 'message error' : 'message'
       box.textContent = text
       pagesEl.replaceChildren(box)
+    },
+    /** 암호 문서의 비밀번호를 받는다. 입력값은 onSubmit으로만 넘기고 어디에도 저장하지 않는다 */
+    askPassword(wrong: boolean, onSubmit: (password: string) => void) {
+      pages = []
+      slots.clear()
+      const form = document.createElement('form')
+      form.className = 'message lock'
+      const title = document.createElement('div')
+      title.className = 'title'
+      title.textContent = '암호로 보호된 문서입니다'
+      const hint = document.createElement('div')
+      hint.className = wrong ? 'wrong' : 'hint'
+      hint.textContent = wrong ? '비밀번호가 맞지 않습니다. 다시 입력해 주세요.' : '문서를 열려면 한컴오피스에서 설정한 열기 암호를 입력하세요.'
+      const input = document.createElement('input')
+      input.type = 'password'
+      input.autocomplete = 'off'
+      input.placeholder = '비밀번호'
+      input.setAttribute('aria-label', '문서 비밀번호')
+      const submit = document.createElement('button')
+      submit.type = 'submit'
+      submit.textContent = '열기'
+      const row = document.createElement('div')
+      row.className = 'row'
+      row.append(input, submit)
+      form.append(title, hint, row)
+      form.addEventListener('submit', (event) => {
+        event.preventDefault()
+        if (input.value.length === 0) return input.focus()
+        onSubmit(input.value)
+      })
+      pagesEl.replaceChildren(form)
+      input.focus()
     },
     /** 쪽 크기만큼 빈 자리를 먼저 깔아 스크롤 위치가 흔들리지 않게 한다 */
     layout(next: PageInfo[]): Map<number, HTMLDivElement> {

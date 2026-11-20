@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { OrcaWorkerApi } from 'orca/worker'
 import { MIN_CHUNK_CHARS, PAGE_SLICE_CHARS, type PageInfo, type RenderResult, type SliceResult } from '../src/protocol.ts'
 import { renderDocumentToScene } from './kordoc.ts'
+import { passwordOption, passwordState } from './password.ts'
 import { DocStore } from './store.ts'
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
@@ -19,12 +20,12 @@ export default function activate(orca: OrcaWorkerApi): void {
     received: store.addChunk(uploadId, index, total, data)
   }))
 
-  orca.panels.handle('hwp.render', async ({ uploadId, fileType }): Promise<RenderResult> => {
+  orca.panels.handle('hwp.render', async ({ uploadId, fileType, password }): Promise<RenderResult> => {
     try {
       const bytes = store.takeBytes(uploadId)
       const docId = createHash('sha256').update(bytes).digest('hex').slice(0, 32)
       const started = Date.now()
-      const { scene, pageSvgs } = await renderDocumentToScene(bytes, { reflow: true })
+      const { scene, pageSvgs } = await renderDocumentToScene(bytes, { reflow: true, password: passwordOption(password) })
       store.putDoc(docId, { pages: pageSvgs })
       const pages: PageInfo[] = scene.pages
         .filter((page) => pageSvgs.has(page.page))
@@ -32,8 +33,11 @@ export default function activate(orca: OrcaWorkerApi): void {
       orca.log(`rendered ${fileType} ${bytes.length}B → ${pages.length} pages in ${Date.now() - started}ms`)
       return { ok: true, docId, pages, warnings: (scene.warnings ?? []).map(warningText) }
     } catch (error) {
-      orca.log(`render failed: ${messageOf(error)}`)
-      return { ok: false, error: messageOf(error) }
+      const message = messageOf(error)
+      const state = passwordState(message)
+      // 비밀번호 자체는 로그에 남기지 않는다
+      orca.log(state ? `render needs password (${state})` : `render failed: ${message}`)
+      return state ? { ok: false, error: message, password: state } : { ok: false, error: message }
     }
   })
 

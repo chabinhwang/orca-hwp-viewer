@@ -1,4 +1,4 @@
-import { MIN_CHUNK_CHARS, PAGE_SLICE_CHARS, UPLOAD_CHUNK_CHARS, type PageInfo } from '../src/protocol.ts'
+import { MIN_CHUNK_CHARS, PAGE_SLICE_CHARS, UPLOAD_CHUNK_CHARS, type PageInfo, type PasswordState } from '../src/protocol.ts'
 
 const RENDER_TIMEOUT_MS = 120_000
 
@@ -36,8 +36,19 @@ async function shrinking<T>(get: () => number, set: (size: number) => void, run:
 
 export type RenderedDoc = { docId: string; pages: PageInfo[]; warnings: string[] }
 
+/** 암호 문서라 비밀번호가 필요하거나, 넘긴 비밀번호가 틀렸을 때 */
+export class PasswordError extends Error {
+  constructor(
+    message: string,
+    readonly state: PasswordState
+  ) {
+    super(message)
+    this.name = 'PasswordError'
+  }
+}
+
 /** 파일을 조각내 워커로 올리고 렌더 결과(쪽 목록)를 받는다 */
-export async function uploadAndRender(bytes: Uint8Array, fileType: string): Promise<RenderedDoc> {
+export async function uploadAndRender(bytes: Uint8Array, fileType: string, password?: string): Promise<RenderedDoc> {
   const base64 = toBase64(bytes)
   // 조각 크기를 줄이면 새 uploadId로 처음부터 다시 보낸다
   const uploadId = await shrinking(
@@ -53,8 +64,10 @@ export async function uploadAndRender(bytes: Uint8Array, fileType: string): Prom
       return id
     }
   )
-  const result = await orca.plugin.request('hwp.render', { uploadId, fileType }, { timeoutMs: RENDER_TIMEOUT_MS })
-  if (!result.ok) throw new Error(result.error)
+  // Orca는 값이 undefined인 키가 있으면 요청을 Invalid input으로 거절하므로, 비밀번호가 있을 때만 키를 넣는다
+  const input = password ? { uploadId, fileType, password } : { uploadId, fileType }
+  const result = await orca.plugin.request('hwp.render', input, { timeoutMs: RENDER_TIMEOUT_MS })
+  if (!result.ok) throw result.password ? new PasswordError(result.error, result.password) : new Error(result.error)
   return { docId: result.docId, pages: result.pages, warnings: result.warnings }
 }
 

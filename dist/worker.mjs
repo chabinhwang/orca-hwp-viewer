@@ -51207,9 +51207,22 @@ import { createHash as createHash3 } from "node:crypto";
 // src/protocol.ts
 var PAGE_SLICE_CHARS = 48e3;
 var MIN_CHUNK_CHARS = 2e3;
+var MAX_PASSWORD_LENGTH = 256;
 
 // worker/kordoc.ts
 init_dist();
+
+// worker/password.ts
+function passwordState(message) {
+  if (/password 옵션/.test(message)) return "required";
+  if (/비밀번호가 일치하지 않/.test(message)) return "wrong";
+  return void 0;
+}
+function passwordOption(password) {
+  if (typeof password !== "string" || password.length === 0) return void 0;
+  if (password.length > MAX_PASSWORD_LENGTH) throw new Error(`\uBE44\uBC00\uBC88\uD638\uAC00 \uB108\uBB34 \uAE41\uB2C8\uB2E4 (\uCD5C\uB300 ${MAX_PASSWORD_LENGTH}\uC790)`);
+  return password;
+}
 
 // worker/store.ts
 var MAX_UPLOADS = 4;
@@ -51282,19 +51295,21 @@ function activate(orca) {
   orca.panels.handle("hwp.chunk", ({ uploadId, index, total, data }) => ({
     received: store.addChunk(uploadId, index, total, data)
   }));
-  orca.panels.handle("hwp.render", async ({ uploadId, fileType }) => {
+  orca.panels.handle("hwp.render", async ({ uploadId, fileType, password }) => {
     try {
       const bytes = store.takeBytes(uploadId);
       const docId = createHash3("sha256").update(bytes).digest("hex").slice(0, 32);
       const started = Date.now();
-      const { scene, pageSvgs } = await renderDocumentToScene(bytes, { reflow: true });
+      const { scene, pageSvgs } = await renderDocumentToScene(bytes, { reflow: true, password: passwordOption(password) });
       store.putDoc(docId, { pages: pageSvgs });
       const pages = scene.pages.filter((page) => pageSvgs.has(page.page)).map((page) => ({ page: page.page, width: page.width, height: page.height, length: pageSvgs.get(page.page)?.length ?? 0 }));
       orca.log(`rendered ${fileType} ${bytes.length}B \u2192 ${pages.length} pages in ${Date.now() - started}ms`);
       return { ok: true, docId, pages, warnings: (scene.warnings ?? []).map(warningText) };
     } catch (error) {
-      orca.log(`render failed: ${messageOf(error)}`);
-      return { ok: false, error: messageOf(error) };
+      const message = messageOf(error);
+      const state = passwordState(message);
+      orca.log(state ? `render needs password (${state})` : `render failed: ${message}`);
+      return state ? { ok: false, error: message, password: state } : { ok: false, error: message };
     }
   });
   orca.panels.handle("hwp.page", ({ docId, page, offset, max }) => {

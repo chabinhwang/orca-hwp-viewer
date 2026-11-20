@@ -11,9 +11,15 @@ export const MIN_CHUNK_CHARS = 2_000
 
 export type PageInfo = { page: number; width: number; height: number; length: number }
 
+/** 암호 문서: `required`는 비밀번호가 필요, `wrong`은 넘긴 비밀번호가 틀림 */
+export type PasswordState = 'required' | 'wrong'
+
+/** 비밀번호 길이 상한. 한컴오피스 열기 암호보다 넉넉하다 */
+export const MAX_PASSWORD_LENGTH = 256
+
 export type RenderResult =
   | { ok: true; docId: string; pages: PageInfo[]; warnings: string[] }
-  | { ok: false; error: string }
+  | { ok: false; error: string; password?: PasswordState }
 
 export type SliceResult = { ok: true; text: string; done: boolean } | { ok: false; error: string }
 
@@ -23,7 +29,7 @@ declare module 'orca' {
       input: { uploadId: string; index: number; total: number; data: string }
       output: { received: number }
     }
-    'hwp.render': { input: { uploadId: string; fileType: string }; output: RenderResult }
+    'hwp.render': { input: { uploadId: string; fileType: string; password?: string }; output: RenderResult }
     'hwp.page': { input: { docId: string; page: number; offset: number; max?: number }; output: SliceResult }
   }
 }

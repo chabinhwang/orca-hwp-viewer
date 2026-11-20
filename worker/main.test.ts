@@ -2,12 +2,15 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { assert, mountWorker, test } from 'orca/testing'
 import * as bundle from '../dist/worker.mjs'
-import { PAGE_SLICE_CHARS, UPLOAD_CHUNK_CHARS } from '../src/protocol.ts'
+import { MAX_PASSWORD_LENGTH, PAGE_SLICE_CHARS, UPLOAD_CHUNK_CHARS } from '../src/protocol.ts'
 
 // 배포되는 번들(dist/worker.mjs)을 시험한다. Orca는 .ts 소스의 npm import를 허용하지 않으므로
 // kordoc을 묶은 번들이 곧 실제 워커다. `npm test`가 번들 최신 여부 확인과 테스트 문서 생성을 먼저 한다.
 const ROOT = join(import.meta.dirname, '..')
 const SAMPLE = join(ROOT, 'test', 'fixtures', 'generated', 'sample.hwpx')
+// scripts/make-fixtures.mjs가 열기 암호로 잠근 HWPX. 비밀번호도 그 스크립트와 같아야 한다
+const LOCKED = join(ROOT, 'test', 'fixtures', 'generated', 'locked.hwpx')
+const LOCKED_PASSWORD = 'orca-test-1234'
 // HWP 5.x는 만들 방법이 없어 test/fixtures/local/(Git 제외)에 실제 문서가 있을 때만 확인한다
 const LOCAL_DIR = join(ROOT, 'test', 'fixtures', 'local')
 const localDocs = existsSync(LOCAL_DIR) ? readdirSync(LOCAL_DIR).filter((name) => /\.hwpx?$/i.test(name)) : []
@@ -17,7 +20,7 @@ type Mounted = Awaited<ReturnType<typeof mountWorker>>
 
 const loadWorker = async () => bundle as WorkerModule
 
-async function render(bytes: Uint8Array, fileType: string) {
+async function render(bytes: Uint8Array, fileType: string, password?: string) {
   const mounted = await mountWorker(await loadWorker())
   const base64 = Buffer.from(bytes).toString('base64')
   const total = Math.ceil(base64.length / UPLOAD_CHUNK_CHARS)
@@ -25,7 +28,7 @@ async function render(bytes: Uint8Array, fileType: string) {
     const data = base64.slice(index * UPLOAD_CHUNK_CHARS, (index + 1) * UPLOAD_CHUNK_CHARS)
     await mounted.request('hwp.chunk', { uploadId: 'u1', index, total, data })
   }
-  return { mounted, result: await mounted.request('hwp.render', { uploadId: 'u1', fileType }) }
+  return { mounted, result: await mounted.request('hwp.render', { uploadId: 'u1', fileType, password }) }
 }
 
 async function readPage(mounted: Mounted, docId: string, page: number, max?: number) {
@@ -77,6 +80,44 @@ for (const name of localDocs) {
     }
   })
 }
+
+const locked = () => new Uint8Array(readFileSync(LOCKED))
+
+test('암호 문서를 비밀번호 없이 열면 비밀번호가 필요하다고 답한다', async () => {
+  const { result } = await render(locked(), 'hwpx')
+  assert.equal(result.ok, false)
+  if (result.ok) return
+  assert.equal(result.password, 'required')
+})
+
+test('암호 문서에 틀린 비밀번호를 주면 틀렸다고 답한다', async () => {
+  const { result } = await render(locked(), 'hwpx', 'not-the-password')
+  assert.equal(result.ok, false)
+  if (result.ok) return
+  assert.equal(result.password, 'wrong')
+})
+
+test('암호 문서를 맞는 비밀번호로 열어 렌더한다', async () => {
+  const { mounted, result } = await render(locked(), 'hwpx', LOCKED_PASSWORD)
+  assert.ok(result.ok, result.ok ? '' : result.error)
+  if (!result.ok) return
+  const { svg } = await readPage(mounted, result.docId, result.pages[0].page)
+  assert.ok(svg.includes('암호'))
+})
+
+test('빈 비밀번호는 비밀번호 없음으로 다루고, 암호 없는 문서에 준 비밀번호는 무시한다', async () => {
+  const empty = await render(locked(), 'hwpx', '')
+  assert.ok(!empty.result.ok && empty.result.password === 'required')
+  const plain = await render(sample(), 'hwpx', 'unused')
+  assert.ok(plain.result.ok)
+})
+
+test('너무 긴 비밀번호는 거절한다', async () => {
+  const { result } = await render(locked(), 'hwpx', 'x'.repeat(MAX_PASSWORD_LENGTH + 1))
+  assert.equal(result.ok, false)
+  if (result.ok) return
+  assert.equal(result.password, undefined)
+})
 
 test('깨진 파일은 오류 문구로 답한다', async () => {
   const mounted = await mountWorker(await loadWorker())
